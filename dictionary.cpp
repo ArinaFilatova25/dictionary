@@ -5,8 +5,7 @@
 #include <set>
 #include <vector>
 #include <algorithm>
-#include <locale.h>
-
+#include <locale>
 
 std::vector<std::string> split(const std::string& input, const std::string& separators) {
     std::vector<std::string> tokens;
@@ -23,19 +22,44 @@ std::vector<std::string> split(const std::string& input, const std::string& sepa
     return tokens;
 }
 
-bool is_one_char_differ(const std::string& word1, const std::string& word2) {
-    if (word1.length() != word2.length()) {
-        return false;
-    }
-    int differ_count = 0;
-    for (size_t i = 0; i < word1.length(); ++i) {
-        if (word1[i] != word2[i]) {
-            if (++differ_count > 1) {
-                return false;
+
+std::set<std::string> find_alternatives(const std::set<std::string>& dict, const std::string& str) {
+    std::set<std::string> res;
+
+    auto is_in_dict = [&dict](const std::string& word) {
+        return dict.find(word) != dict.end();
+    };
+
+    for (size_t i = 0; i < str.length(); ++i) {
+        for (char c = 'a'; c <= 'z'; ++c) {
+            if (str[i] != c) {
+                std::string replaced = str;
+                replaced[i] = c;
+                if (is_in_dict(replaced))
+                    res.insert(replaced);
+            }
+
+            std::string inserted = str;
+            inserted.insert(i, 1, c);
+            if (is_in_dict(inserted))
+                res.insert(inserted);
+
+            if (i < str.length() - 1) {
+                std::string deleted = str;
+                deleted.erase(i, 1);
+                if (is_in_dict(deleted))
+                    res.insert(deleted);
             }
         }
     }
-    return differ_count == 1;
+
+    for (char c = 'a'; c <= 'z'; ++c) {
+        std::string temp = str + c;
+        if (is_in_dict(temp))
+            res.insert(temp);
+    }
+
+    return res;
 }
 
 int main() {
@@ -44,7 +68,6 @@ int main() {
     std::ofstream output_file("output.txt");
     std::ofstream new_dictionary_file("new_dict.txt");
     std::set<std::string> dictionary;
-
 
     std::ifstream dictionary_file("dict.txt");
     std::string word;
@@ -81,14 +104,26 @@ int main() {
                 case 2:
                     output_file << word << " ";
                     break;
-                case 3:
-                    for (const std::string& dictWord : dictionary) {
-                        if (is_one_char_differ(lower_word, dictWord)) {
-                            output_file << dictWord << " ";
-                            break;
+                case 3: {
+                    std::set<std::string> replacements = find_alternatives(dictionary, lower_word);
+                    if (replacements.empty()) {
+                        std::cout << "Нет подходящих замен в словаре.\n";
+                    }
+                    else {
+                        std::cout << "Выберите замену:\n";
+                        int ind = 1;
+                        for (const auto& repl : replacements) {
+                            std::cout << ind << ". " << repl << std::endl;
+                            ++ind;
                         }
+                        int replace_choice;
+                        std::cin >> replace_choice;
+                        auto it = replacements.begin();
+                        std::advance(it, replace_choice - 1);
+                        output_file << *it << " ";
                     }
                     break;
+                }
                 default:
                     std::cerr << "Неверный выбор. Слово \"" << word << "\" будет пропущено.\n";
                     break;
@@ -108,4 +143,3 @@ int main() {
 
     return 0;
 }
-
