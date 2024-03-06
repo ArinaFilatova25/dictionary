@@ -5,7 +5,7 @@
 #include <set>
 #include <vector>
 #include <algorithm>
-#include <locale>
+#include <locale.h>
 
 std::vector<std::string> split(const std::string& input, const std::string& separators) {
     std::vector<std::string> tokens;
@@ -22,45 +22,35 @@ std::vector<std::string> split(const std::string& input, const std::string& sepa
     return tokens;
 }
 
+bool is_one_char_differ(const std::string& word1, const std::string& word2) {
 
-std::set<std::string> find_alternatives(const std::set<std::string>& dict, const std::string& str) {
-    std::set<std::string> res;
+    int diff_len = word1.length() - word2.length();
+    if (std::abs(diff_len) > 1) {
+        return false;
+    }
 
-    auto is_in_dict = [&dict](const std::string& word) {
-        return dict.find(word) != dict.end();
-    };
+    int diff_count = 0; 
 
-    for (size_t i = 0; i < str.length(); ++i) {
-        for (char c = 'a'; c <= 'z'; ++c) {
-            if (str[i] != c) {
-                std::string replaced = str;
-                replaced[i] = c;
-                if (is_in_dict(replaced))
-                    res.insert(replaced);
+    for (size_t i = 0, j = 0; i < word1.length() && j < word2.length(); ++i, ++j) {
+        if (word1[i] != word2[j]) {
+            ++diff_count;
+
+            if (diff_count > 1) {
+                return false;
             }
 
-            std::string inserted = str;
-            inserted.insert(i, 1, c);
-            if (is_in_dict(inserted))
-                res.insert(inserted);
-
-            if (i < str.length() - 1) {
-                std::string deleted = str;
-                deleted.erase(i, 1);
-                if (is_in_dict(deleted))
-                    res.insert(deleted);
+            if (word1.length() > word2.length()) {
+                --j;
+            }
+            else if (word1.length() < word2.length()) {
+                --i;
             }
         }
     }
 
-    for (char c = 'a'; c <= 'z'; ++c) {
-        std::string temp = str + c;
-        if (is_in_dict(temp))
-            res.insert(temp);
-    }
-
-    return res;
+    return true;
 }
+
 
 int main() {
     setlocale(LC_ALL, "Rus");
@@ -104,26 +94,39 @@ int main() {
                 case 2:
                     output_file << word << " ";
                     break;
-                case 3: {
-                    std::set<std::string> replacements = find_alternatives(dictionary, lower_word);
-                    if (replacements.empty()) {
-                        std::cout << "Нет подходящих замен в словаре.\n";
+                case 3:
+                {
+                    std::vector<std::string> candidates;
+                    for (const std::string& dictWord : dictionary) {
+                        if (is_one_char_differ(lower_word, dictWord)) {
+                            candidates.push_back(dictWord);
+                        }
+                    }
+                    if (!candidates.empty()) {
+                        std::cout << "Выберите слово для замены:\n";
+                        for (size_t i = 0; i < candidates.size(); ++i) {
+                            std::cout << i + 1 << ") " << candidates[i] << "\n";
+                        }
+
+                        int replace_choice;
+                        bool valid_choice = false;
+                        do {
+                            std::cin >> replace_choice;
+                            if (replace_choice >= 1 && replace_choice <= candidates.size()) {
+                                valid_choice = true;
+                            }
+                            else {
+                                std::cerr << "Неверный выбор. Пожалуйста, выберите число от 1 до " << candidates.size() << ": ";
+                            }
+                        } while (!valid_choice);
+
+                        output_file << candidates[replace_choice - 1] << " ";
                     }
                     else {
-                        std::cout << "Выберите замену:\n";
-                        int ind = 1;
-                        for (const auto& repl : replacements) {
-                            std::cout << ind << ". " << repl << std::endl;
-                            ++ind;
-                        }
-                        int replace_choice;
-                        std::cin >> replace_choice;
-                        auto it = replacements.begin();
-                        std::advance(it, replace_choice - 1);
-                        output_file << *it << " ";
+                        std::cerr << "Нет подходящих слов для замены. Слово \"" << word << "\" будет пропущено.\n";
                     }
-                    break;
                 }
+                break;
                 default:
                     std::cerr << "Неверный выбор. Слово \"" << word << "\" будет пропущено.\n";
                     break;
